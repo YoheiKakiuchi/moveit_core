@@ -406,6 +406,8 @@ double moveit::core::JointModelGroup::distance(const double *state1, const doubl
 
 void moveit::core::JointModelGroup::interpolate(const double *from, const double *to, double t, double *state) const
 {
+  logInform("joint_model_group: interpolate");
+
   // we interpolate values only for active joint models (non-mimic)
   for (std::size_t i = 0 ; i < active_joint_model_vector_.size() ; ++i)
     active_joint_model_vector_[i]->interpolate(from + active_joint_model_start_index_[i], to + active_joint_model_start_index_[i],

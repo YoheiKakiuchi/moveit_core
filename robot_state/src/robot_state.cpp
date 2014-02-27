@@ -667,14 +667,18 @@ double moveit::core::RobotState::distance(const RobotState &other, const JointMo
 
 void moveit::core::RobotState::interpolate(const RobotState &to, double t, RobotState &state) const
 {
+  logWarn("robot_state.interpolate() whole robot");
+
   robot_model_->interpolate(getVariablePositions(), to.getVariablePositions(), t, state.getVariablePositions());
-  
+
   memset(state.dirty_joint_transforms_, 1, state.robot_model_->getJointModelCount() * sizeof(unsigned char));
   state.dirty_link_transforms_ = state.robot_model_->getRootJoint();
 }
 
 void moveit::core::RobotState::interpolate(const RobotState &to, double t, RobotState &state, const JointModelGroup *joint_group) const
 {
+  logWarn("robot_state.interpolate() joint group");
+
   const std::vector<const JointModel*> &jm = joint_group->getActiveJointModels();
   for (std::size_t i = 0 ; i < jm.size() ; ++i)
   {
