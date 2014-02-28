@@ -103,8 +103,11 @@ void robot_trajectory::RobotTrajectory::unwind()
   const std::vector<const robot_model::JointModel*> &cont_joints = group_ ?
     group_->getContinuousJointModels() : robot_model_->getContinuousJointModels();
 
+  logInform("Found %d continous joints", cont_joints.size());
   for (std::size_t i = 0 ; i < cont_joints.size() ; ++i)
   {
+    logInform("Joint %s", cont_joints[i]->getName().c_str());
+
     // unwrap continuous joints
     double running_offset = 0.0;
     double last_value = waypoints_[0]->getJointPositions(cont_joints[i])[0];

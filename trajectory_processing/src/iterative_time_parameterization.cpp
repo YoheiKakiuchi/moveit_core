@@ -118,11 +118,19 @@ void IterativeParabolicTimeParameterization::applyVelocityConstraints(robot_traj
       const robot_model::VariableBounds &b = rmodel.getVariableBounds(vars[j]);
       if (b.velocity_bounded_)
         v_max = std::min(fabs(b.max_velocity_), fabs(b.min_velocity_));
+
+      logInform("On point %d for variable %s for velocity constraints. V-max is %f, min %f max %f", 
+        i, vars[j].c_str(), v_max, b.max_velocity_, b.min_velocity_);
+
       const double dq1 = curr_waypoint->getVariablePosition(idx[j]);
       const double dq2 = next_waypoint->getVariablePosition(idx[j]);
       const double t_min = std::abs(dq2-dq1) / v_max;
+      logInform("    dq1=%f, dq2=%f, t_min=%f", dq1, dq2, t_min);
       if (t_min > time_diff[i])
+      {
         time_diff[i] = t_min;
+        logWarn("    new time diff for joint %s, t_min=%f",vars[j].c_str(), t_min);
+      }
     }
   }
 }
@@ -182,6 +190,7 @@ namespace
 void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
                       const std::vector<double>& time_diff)
 {
+  logError("updateTrajectory with time diff size %d", time_diff.size());
   // Error check
   if (time_diff.size() < 1)
     return;
@@ -454,14 +463,15 @@ bool IterativeParabolicTimeParameterization::computeTimeStamps(robot_trajectory:
   for (std::size_t i = 0 ; i < jnt.size() ; ++i)
     if (jnt[i]->getVariableCount() > 1)
     {
-      logWarn("Time parametrization works for single-dof joints only");
-      return false;
+      logWarn("Time parametrization works for single-dof joints only, BUT WE'LL TRY ANYWAY");
+      //return false;
     }
 
   // this lib does not actually work properly when angles wrap around, so we need to unwind the path first
   trajectory.unwind();
 
   const int num_points = trajectory.getWayPointCount();
+  logInform("Trajectory has %d points", num_points);
   std::vector<double> time_diff(num_points-1, 0.0);       // the time difference between adjacent points
   
   applyVelocityConstraints(trajectory, time_diff);
