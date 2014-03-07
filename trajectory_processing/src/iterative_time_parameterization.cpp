@@ -119,17 +119,17 @@ void IterativeParabolicTimeParameterization::applyVelocityConstraints(robot_traj
       if (b.velocity_bounded_)
         v_max = std::min(fabs(b.max_velocity_), fabs(b.min_velocity_));
 
-      logInform("On point %d for variable %s for velocity constraints. V-max is %f, min %f max %f", 
-        i, vars[j].c_str(), v_max, b.max_velocity_, b.min_velocity_);
+      //logInform("On point %d for variable %s for velocity constraints. V-max is %f, min %f max %f", 
+      //  i, vars[j].c_str(), v_max, b.max_velocity_, b.min_velocity_);
 
       const double dq1 = curr_waypoint->getVariablePosition(idx[j]);
       const double dq2 = next_waypoint->getVariablePosition(idx[j]);
       const double t_min = std::abs(dq2-dq1) / v_max;
-      logInform("    dq1=%f, dq2=%f, t_min=%f", dq1, dq2, t_min);
+      //logInform("    dq1=%f, dq2=%f, t_min=%f", dq1, dq2, t_min);
       if (t_min > time_diff[i])
       {
         time_diff[i] = t_min;
-        logWarn("    new time diff for joint %s, t_min=%f",vars[j].c_str(), t_min);
+        //logWarn("    new time diff for joint %s, t_min=%f",vars[j].c_str(), t_min);
       }
     }
   }
@@ -190,10 +190,15 @@ namespace
 void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
                       const std::vector<double>& time_diff)
 {
-  logError("updateTrajectory with time diff size %d", time_diff.size());
+  //logError("updateTrajectory with time_diff vector size %d and diffs:", time_diff.size());
+  //std::copy(time_diff.begin(), time_diff.end(), std::ostream_iterator<double>(std::cout, " sec \n"));
+
   // Error check
   if (time_diff.size() < 1)
+  {
+    logError("no time diff");
     return;
+  }
 
   double time_sum = 0.0;
   
@@ -232,11 +237,11 @@ void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
     
     for (std::size_t j = 0; j < vars.size(); ++j)
     {
-      double q1;
-      double q2;
-      double q3;
-      double dt1;
-      double dt2;
+      double q1; // previous variable position
+      double q2; // current variable position
+      double q3; // next variable position
+      double dt1; // delta time between previous and now
+      double dt2; // delta time between now and next
 
       if (i == 0)
       { 
@@ -268,7 +273,7 @@ void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
           dt1 = dt2 = time_diff[i-1];
         }
       
-      double v1, v2, a;
+      double v1, v2, a; // velocities and acceleration
 
       bool start_velocity = false;
       if (dt1 == 0.0 || dt2 == 0.0)
@@ -290,9 +295,19 @@ void updateTrajectory(robot_trajectory::RobotTrajectory& rob_trajectory,
         v1 = start_velocity ? v1 : (q2-q1)/dt1;
         //v2 = (q3-q2)/dt2;
         v2 = start_velocity ? v1 : (q3-q2)/dt2; // Needed to ensure continuous velocity for first point
-        a = 2.0*(v2-v1)/(dt1+dt2);
+        a = 2.0*(v2-v1)/(dt1+dt2); 
       }
-      
+
+      /*
+      if (vars[j].find("virtual_joint") != std::string::npos)
+        logWarn("Var %s at pt %d, vel: %f, accel: %f from q1: %f, q2: %f, q3: %f, dt1: %f, dt2: %f", 
+          vars[j].c_str(), i, (v2+v1)/2.0, a, q1, q2, q3, dt1, dt2);
+      else
+        logInform("Var %s at pt %d, vel: %f, accel: %f from q1: %f, q2: %f, q3: %f, dt1: %f, dt2: %f", 
+          vars[j].c_str(), i, (v2+v1)/2.0, a, q1, q2, q3, dt1, dt2);
+      */
+
+      // Set the velocity and accelartion in the trajectory
       curr_waypoint->setVariableVelocity(idx[j], (v2+v1)/2.0);
       curr_waypoint->setVariableAcceleration(idx[j], a);
     }
@@ -463,7 +478,7 @@ bool IterativeParabolicTimeParameterization::computeTimeStamps(robot_trajectory:
   for (std::size_t i = 0 ; i < jnt.size() ; ++i)
     if (jnt[i]->getVariableCount() > 1)
     {
-      logWarn("Time parametrization works for single-dof joints only, BUT WE'LL TRY ANYWAY");
+      logWarn(" IterativeParabolicTimeParameterization.computeTimeStamps: Time parametrization works for single-dof joints only, BUT WE'LL TRY ANYWAY");
       //return false;
     }
 
@@ -471,13 +486,16 @@ bool IterativeParabolicTimeParameterization::computeTimeStamps(robot_trajectory:
   trajectory.unwind();
 
   const int num_points = trajectory.getWayPointCount();
-  logInform("Trajectory has %d points", num_points);
+  logInform(" IterativeParabolicTimeParameterization.computeTimeStamps: Trajectory has %d points", num_points);
   std::vector<double> time_diff(num_points-1, 0.0);       // the time difference between adjacent points
-  
+
+  logInform(" IterativeParabolicTimeParameterization.computeTimeStamps: start applyVelocityConstraints");
   applyVelocityConstraints(trajectory, time_diff);
+  logInform(" IterativeParabolicTimeParameterization.computeTimeStamps: start applyAccelerationConstraints");
   applyAccelerationConstraints(trajectory, time_diff);
-  
+    logInform(" IterativeParabolicTimeParameterization.computeTimeStamps: start updateTrajectory");
   updateTrajectory(trajectory, time_diff);
+
   return true;
 }
 
