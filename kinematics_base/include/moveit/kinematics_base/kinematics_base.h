@@ -43,6 +43,14 @@
 #include <console_bridge/console.h>
 #include <string>
 
+namespace moveit
+{
+namespace core
+{
+class JointModelGroup;
+}
+}
+
 /** @brief API for forward and inverse kinematics */
 namespace kinematics
 {
@@ -141,7 +149,6 @@ public:
    * @param ik_seed_state an initial guess solution for the inverse kinematics
    * @param timeout The amount of time (in seconds) available to the solver
    * @param solution the solution vector
-   * @param desired_pose_callback A callback function for the desired link pose - could be used, e.g. to check for collisions for the end-effector
    * @param solution_callback A callback solution for the IK solution
    * @param error_code an error code that encodes the reason for failure or success
    * @param lock_redundant_joints if setRedundantJoints() was previously called, keep the values of the joints marked as redundant the same as in the seed
@@ -164,7 +171,6 @@ public:
    * @param timeout The amount of time (in seconds) available to the solver
    * @param consistency_limits the distance that any joint in the solution can be from the corresponding joints in the current seed state
    * @param solution the solution vector
-   * @param desired_pose_callback A callback function for the desired link pose - could be used, e.g. to check for collisions for the end-effector
    * @param solution_callback A callback solution for the IK solution
    * @param error_code an error code that encodes the reason for failure or success
    * @param lock_redundant_joints if setRedundantJoints() was previously called, keep the values of the joints marked as redundant the same as in the seed
@@ -190,7 +196,6 @@ public:
    * @param timeout The amount of time (in seconds) available to the solver
    * @param consistency_limits the distance that any joint in the solution can be from the corresponding joints in the current seed state
    * @param solution the solution vector
-   * @param desired_pose_callback A callback function for the desired link pose - could be used, e.g. to check for collisions for the end-effector
    * @param solution_callback A callback solution for the IK solution
    * @param error_code an error code that encodes the reason for failure or success
    * @param lock_redundant_joints if setRedundantJoints() was previously called, keep the values of the joints marked as redundant the same as in the seed
@@ -208,14 +213,28 @@ public:
     // For IK solvers that do not support multiple poses, fall back to single pose call
     if (ik_poses.size() == 1)
     {
-      return searchPositionIK(ik_poses[0],
-        ik_seed_state,
-        timeout,
-        consistency_limits,
-        solution,
-        solution_callback,
-        error_code,
-        options);
+      // Check if a solution_callback function was provided and call the corresponding function
+      if (solution_callback)
+      {
+        return searchPositionIK(ik_poses[0],
+          ik_seed_state,
+          timeout,
+          consistency_limits,
+          solution,
+          solution_callback,
+          error_code,
+          options);
+      }
+      else
+      {
+        return searchPositionIK(ik_poses[0],
+          ik_seed_state,
+          timeout,
+          consistency_limits,
+          solution,
+          error_code,
+          options);
+      }
     }
 
     // Otherwise throw error because this function should have been implemented
@@ -394,6 +413,26 @@ public:
    */
   virtual const std::vector<std::string>& getLinkNames() const = 0;
 
+
+  /**
+   * \brief Check if this solver supports a given JointModelGroup.
+   *
+   * Override this function to check if your kinematics solver
+   * implementation supports the given group.
+   *
+   * The default implementation just returns jmg->isChain(), since
+   * solvers written before this function was added all supported only
+   * chain groups.
+   *
+   * \param jmg the planning group being proposed to be solved by this IK solver
+   * \param error_text_out If this pointer is non-null and the group is
+   *          not supported, this is filled with a description of why it's not
+   *          supported.
+   * \return True if the group is supported, false if not.
+   */
+  virtual const bool supportsGroup(const moveit::core::JointModelGroup *jmg,
+                                   std::string* error_text_out = NULL) const;
+
   /**
    * @brief  Set the search discretization
    */
@@ -430,10 +469,10 @@ public:
   virtual ~KinematicsBase() {}
 
   KinematicsBase() :
+    tip_frame_("DEPRECATED"), // help users understand why this variable might not be set
+                              // (if multiple tip frames provided, this variable will be unset)
     search_discretization_(DEFAULT_SEARCH_DISCRETIZATION),
-    default_timeout_(DEFAULT_TIMEOUT),
-    tip_frame_("DEPRECATED") // help users understand why this variable might not be set
-                             // (if multiple tip frames provided, this variable will be unset)
+    default_timeout_(DEFAULT_TIMEOUT)
   {}
 
 protected:

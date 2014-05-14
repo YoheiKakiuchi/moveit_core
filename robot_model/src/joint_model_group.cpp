@@ -170,7 +170,6 @@ moveit::core::JointModelGroup::JointModelGroup(const std::string& group_name,
   // that root distinct subtrees
   for (std::size_t i = 0 ; i < active_joint_model_vector_.size() ; ++i)
   {
-    bool found = false;
     // if we find that an ancestor is also in the group, then the joint is not a root
     if (!includesParent(active_joint_model_vector_[i], this))
       joint_roots_.push_back(active_joint_model_vector_[i]);
@@ -556,10 +555,7 @@ bool moveit::core::JointModelGroup::canSetStateFromIK(const std::string &tip) co
 {
   const kinematics::KinematicsBaseConstPtr& solver = getSolverInstance();
   if (!solver || tip.empty())
-  {
-    logError("Cannot set state, no solver or tip is empty");
     return false;
-  }
 
   const std::vector<std::string> &tip_frames = solver->getTipFrames();
 

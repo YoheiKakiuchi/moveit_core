@@ -471,7 +471,7 @@ void moveit::core::RobotState::updateLinkTransforms()
 void moveit::core::RobotState::updateLinkTransformsInternal(const JointModel *start)
 {  
   const std::vector<const LinkModel*> &links = start->getDescendantLinkModels();
-  if (links.size() > 0)
+  if (!links.empty())
   { 
     const LinkModel *parent = links[0]->getParentLinkModel();
     if (parent)
@@ -1104,9 +1104,9 @@ void moveit::core::RobotState::computeVariableVelocity(const JointModelGroup *jm
   Eigen::VectorXd Sinv = S;
   static const double pinvtoler = std::numeric_limits<float>::epsilon();
   double maxsv = 0.0 ;
-  for (std::size_t i = 0; i < S.rows(); ++i)
+  for (std::size_t i = 0; i < static_cast<std::size_t>(S.rows()); ++i)
     if (fabs(S(i)) > maxsv) maxsv = fabs(S(i));
-  for (std::size_t i = 0; i < S.rows(); ++i)
+  for (std::size_t i = 0; i < static_cast<std::size_t>(S.rows()); ++i)
   {
     //Those singular values smaller than a percentage of the maximum singular value are removed
     if (fabs(S(i)) > maxsv * pinvtoler)
@@ -1204,6 +1204,7 @@ bool ikCallbackFnAdapter(RobotState *state, const JointModelGroup *group, const 
     error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
   else
     error_code.val = moveit_msgs::MoveItErrorCodes::NO_IK_SOLUTION;
+  return true;
 }
 }
 }
@@ -1393,7 +1394,6 @@ bool moveit::core::RobotState::setFromIK(const JointModelGroup *jmg, const Eigen
     // compute the IK solution
     std::vector<double> ik_sol;
     moveit_msgs::MoveItErrorCodes error;
-    // \todo no function call that accepts multiple poses and no callback has been created. is it really needed?
     if (solver->searchPositionIK(ik_queries, seed, timeout, consistency_limits, ik_sol, ik_callback_fn, error, options))
     {
       std::vector<double> solution(bij.size());
@@ -1721,12 +1721,18 @@ double moveit::core::RobotState::computeCartesianPath(const JointModelGroup *gro
     if (fabs(wp_percentage_solved - 1.0) < std::numeric_limits<double>::epsilon())
     {
       percentage_solved = (double)(i + 1) / (double)waypoints.size();
-      traj.insert(traj.end(), waypoint_traj.begin(), waypoint_traj.end());
+      std::vector<RobotStatePtr>::iterator start = waypoint_traj.begin();
+      if(i > 0 && !waypoint_traj.empty())
+        std::advance(start, 1);
+      traj.insert(traj.end(), start, waypoint_traj.end());
     }
     else
     {
       percentage_solved += wp_percentage_solved / (double)waypoints.size();
-      traj.insert(traj.end(), waypoint_traj.begin(), waypoint_traj.end());
+      std::vector<RobotStatePtr>::iterator start = waypoint_traj.begin();
+      if(i > 0 && !waypoint_traj.empty())
+        std::advance(start, 1);
+      traj.insert(traj.end(), start, waypoint_traj.end());
       break;
     }
   }
